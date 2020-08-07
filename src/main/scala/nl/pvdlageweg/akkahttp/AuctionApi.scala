@@ -6,12 +6,14 @@ import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
 import akka.util.Timeout
-import nl.pvdlageweg.akkahttp.AuctionActor.{AuctionCommands, Bid, Bids, GetBids, PlaceBid}
-import spray.json.DefaultJsonProtocol.{jsonFormat1, jsonFormat2}
-import spray.json.DefaultJsonProtocol._
+import nl.pvdlageweg.akkahttp.AuctionActor._
+import spray.json.DefaultJsonProtocol.{jsonFormat1, jsonFormat2, _}
 
 import scala.concurrent.Future
 import scala.concurrent.duration._
+import scala.util.Failure
+import scala.util.Success
+
 object AuctionApi {
   def apply(actor: ActorRef[AuctionCommands], system: ActorSystem[_]) = new AuctionApi(actor, system)
 }
@@ -34,9 +36,14 @@ class AuctionApi(private val actor: ActorRef[AuctionCommands], private val syste
       concat(
         put {
           parameter("bid".as[Int], "user") { (bid, user) =>
-            // place a bid, fire-and-forget
-            actor ! PlaceBid(Bid(user, bid))
-            complete(StatusCodes.Accepted, "bid placed")
+            onComplete(actor.ask[BidsAcceptance](ref => PlaceBid(Bid(user, bid), ref)).mapTo[BidsAcceptance]) {
+              case Success(bidResult) =>
+                bidResult match {
+                  case BidAccepted() => complete(StatusCodes.Accepted, "bid placed")
+                  case BidRejected() => complete(StatusCodes.Conflict, "bid rejected")
+                }
+              case Failure(ex) => complete(StatusCodes.InternalServerError, s"An error occurred: ${ex.getMessage}")
+            }
           }
         },
         get {
