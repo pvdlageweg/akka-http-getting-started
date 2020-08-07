@@ -14,3 +14,16 @@ libraryDependencies +="com.typesafe.akka" %% "akka-actor-typed" % akkaVersion
 libraryDependencies +="com.typesafe.akka" %% "akka-slf4j" % akkaVersion
 libraryDependencies +="ch.qos.logback" % "logback-classic" % "1.2.3"
 
+scalacOptions ++= Seq(
+  "-encoding", "utf-8",
+  "-Xfatal-warnings",
+  "-explaintypes",
+  "-deprecation",
+  "-feature",
+  "-unchecked",
+  "-language:implicitConversions",
+  "-language:higherKinds",
+  "-language:existentials",
+  "-language:postfixOps",
+  "-Ywarn-unused:imports"
+)
