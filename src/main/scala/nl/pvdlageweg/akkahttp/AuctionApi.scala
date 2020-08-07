@@ -47,8 +47,6 @@ class AuctionApi(private val actor: ActorRef[AuctionCommands], private val syste
           }
         },
         get {
-          implicit val timeout: Timeout = 5.seconds
-
           // query the actor for the current auction state
           implicit val scheduler: Scheduler = system.scheduler
           val bidsFuture: Future[Bids] = (actor ? GetBids).mapTo[Bids]
