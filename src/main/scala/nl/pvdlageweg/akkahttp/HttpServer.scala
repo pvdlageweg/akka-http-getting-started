@@ -1,7 +1,7 @@
 package nl.pvdlageweg.akkahttp
 
 import akka.Done
-import akka.actor.typed.ActorRef
+import akka.actor.typed.{ActorRef, ActorSystem}
 import akka.actor.typed.scaladsl.Behaviors
 import akka.http.scaladsl.Http
 import nl.pvdlageweg.akkahttp.AuctionActor.AuctionCommands
@@ -17,7 +17,7 @@ object HttpServer {
       // Needed for Http server and Futures
 
       // Akka http uses the classic actor system api
-      implicit val system = context.system
+      implicit val system: ActorSystem[Nothing] = context.system
       implicit val ec: ExecutionContext = context.system.executionContext
 
       val api = AuctionApi(actor, system)

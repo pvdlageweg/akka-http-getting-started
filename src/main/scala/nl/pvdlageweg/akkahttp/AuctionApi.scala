@@ -8,8 +8,9 @@ import akka.http.scaladsl.server.Route
 import akka.util.Timeout
 import nl.pvdlageweg.akkahttp.AuctionActor._
 import spray.json.DefaultJsonProtocol.{jsonFormat1, jsonFormat2, _}
+import spray.json.RootJsonFormat
 
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContextExecutor, Future}
 import scala.concurrent.duration._
 import scala.util.Failure
 import scala.util.Success
@@ -21,11 +22,11 @@ object AuctionApi {
 class AuctionApi(private val actor: ActorRef[AuctionCommands], private val system: ActorSystem[_]) {
 
   // Needed for ask pattern and Futures
-  implicit val timeout = Timeout(5.seconds) // usually we'd obtain the timeout from the system's configuration
-  implicit val scheduler = system.scheduler
-  implicit val ec = system.executionContext
-  implicit val bidFormat = jsonFormat2(Bid)
-  implicit val bidsFormat = jsonFormat1(Bids)
+  implicit val timeout: Timeout = Timeout(5.seconds) // usually we'd obtain the timeout from the system's configuration
+  implicit val scheduler: Scheduler = system.scheduler
+  implicit val ec: ExecutionContextExecutor = system.executionContext
+  implicit val bidFormat: RootJsonFormat[Bid] = jsonFormat2(Bid)
+  implicit val bidsFormat: RootJsonFormat[Bids] = jsonFormat1(Bids)
   val routes: Route = concat(
     auction()
   )
