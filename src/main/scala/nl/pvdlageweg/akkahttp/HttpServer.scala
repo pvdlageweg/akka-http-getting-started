@@ -32,9 +32,6 @@ object HttpServer {
           println("Some thing else")
       }
 
-//      serverBinding
-//        .flatMap(_.unbind()) // trigger unbinding from the port
-
       // Return a behavior that terminates the actor if the serverBinding completes
       // that is the akka Http server cannot bind a tcp endpoint with failure.
       Behaviors.receiveMessage {
