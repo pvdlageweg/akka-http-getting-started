@@ -3,6 +3,8 @@ package nl.pvdlageweg.akkahttp
 import akka.actor.typed.{Behavior, ChildFailed}
 import akka.actor.typed.scaladsl.Behaviors
 
+import scala.concurrent.ExecutionContext
+
 object MainSupervisor {
   // This is a sample of functional style actor
   // see docs: https://doc.akka.io/docs/akka/current/typed/style-guide.html
@@ -12,10 +14,13 @@ object MainSupervisor {
     */
   def apply(): Behavior[Nothing] =
     Behaviors.setup[Nothing] { context =>
+      nl.pvdlageweg.akkahttp.Migration.migrate()
+
+      implicit val executionContext: ExecutionContext = context.executionContext
       context.log.info("MainSupervisor started")
 
       // Start and watch AccountGroup actor
-      val auctionActor = context.spawn(AuctionActor(), "AuctionActor")
+      val auctionActor = context.spawn(AuctionActor(AuctionDao.apply()), "AuctionActor")
       context.watch(auctionActor)
 
       // Start and watch HttpServer actor

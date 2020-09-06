@@ -3,6 +3,8 @@ package nl.pvdlageweg.akkahttp
 import akka.actor.typed.scaladsl.Behaviors
 import akka.actor.typed.{ActorRef, Behavior}
 
+import scala.concurrent.{ExecutionContext, Future}
+
 object AuctionActor {
   case class Auction(auctionId: Int, description: String)
   case class Bid(auctionId: Int, userId: String, offer: Int)
@@ -16,21 +18,29 @@ object AuctionActor {
   case class BidAccepted() extends BidsAcceptance
 
   case class RequestAuctionList(replyTo: ActorRef[AuctionCommands]) extends AuctionCommands
-  case class AuctionList(auctions: List[Auction]) extends AuctionCommands
+  case class AuctionList(auctions: Iterable[Auction]) extends AuctionCommands
 
   /**
     * Actor builder method
     */
-  def apply(): Behavior[AuctionCommands] =
-    apply(List.newBuilder.+=(Auction(223, "test auction")).result(), List.empty[Bid])
+  def apply(auctionDoa: AuctionDao)(implicit executionContext: ExecutionContext): Behavior[AuctionCommands] =
+    apply(auctionDoa, List.newBuilder.+=(Auction(223, "test auction")).result(), List.empty[Bid])
 
-  def apply(auctions: List[Auction], bids: List[Bid]): Behavior[AuctionCommands] =
+  def apply(auctionDao: AuctionDao, auctions: List[Auction], bids: List[Bid])(implicit
+      executionContext: ExecutionContext
+  ): Behavior[AuctionCommands] =
     Behaviors.setup { context =>
       context.log.info("AuctionActor started")
 
       Behaviors.receiveMessage {
         case RequestAuctionList(replyTo) =>
-          replyTo ! AuctionList(List.newBuilder.+=(Auction(123, "auctin 1")).result())
+          val auctions: Future[Iterable[Auction]] = auctionDao.all()
+          auctions.onComplete {
+            case scala.util.Success(result) =>
+              replyTo ! AuctionList(result)
+            case scala.util.Failure(ex) =>
+              replyTo ! BidRejected(ex.getMessage)
+          }
           Behaviors.same
         case PlaceBid(bid: Bid, replyTo: ActorRef[BidsAcceptance]) =>
           context.log.info(s"Bid recieved: $bid.userId, $bid.offer")
@@ -47,7 +57,7 @@ object AuctionActor {
                 case None =>
                   println("No higher bid found")
                   replyTo ! BidAccepted()
-                  apply(auctions, bids :+ bid)
+                  apply(auctionDao, auctions, bids :+ bid)
               }
             case None =>
               val error = s"No auction found with id ${bid.auctionId}"

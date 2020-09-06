@@ -6,11 +6,16 @@ version := "1.0"
 
 lazy val akkaVersion = "2.6.8"
 lazy val akkaHttpVersion = "10.2.0"
+lazy val slickVersion = "3.3.2"
 
 libraryDependencies += "com.typesafe.akka" %% "akka-http-spray-json" % akkaHttpVersion
 libraryDependencies += "com.typesafe.akka" %% "akka-http" % akkaHttpVersion
 libraryDependencies +="com.typesafe.akka" %% "akka-stream" % akkaVersion
 libraryDependencies +="com.typesafe.akka" %% "akka-actor-typed" % akkaVersion
+libraryDependencies +="com.typesafe.slick" %% "slick" % slickVersion
+libraryDependencies +="com.typesafe.slick" %% "slick-hikaricp" % slickVersion
+libraryDependencies +="org.flywaydb" % "flyway-core" % "6.5.5"
+libraryDependencies +="com.h2database" % "h2" % "1.4.200"
 libraryDependencies +="com.typesafe.akka" %% "akka-slf4j" % akkaVersion
 libraryDependencies +="ch.qos.logback" % "logback-classic" % "1.2.3"
 
