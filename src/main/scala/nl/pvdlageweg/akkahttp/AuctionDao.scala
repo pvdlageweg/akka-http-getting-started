@@ -49,6 +49,6 @@ private[akkahttp] object AuctionDaoDefinitions extends SlickDAO[Auction, Auction
 
     override def all(): Future[Iterable[Auction]] =
       db.run(query.result)
-        .map(xs ⇒ xs.map(row ⇒ Auction(row.auctionId, row.description)))
+        .map(xs => xs.map(row => Auction(row.auctionId, row.description)))
   }
 }
