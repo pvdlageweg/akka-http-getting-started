@@ -4,13 +4,12 @@ import akka.Done
 import akka.actor.typed.{ActorRef, ActorSystem, Behavior}
 import akka.actor.typed.scaladsl.Behaviors
 import akka.http.scaladsl.Http
-import nl.pvdlageweg.akkahttp.AuctionActor.Command
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success}
 
 object HttpServer {
-  def apply(actor: ActorRef[Command]): Behavior[Done] =
+  def apply(auctionActor: ActorRef[AuctionActor.Command], bidActor: ActorRef[BidActor.Command]): Behavior[Done] =
     Behaviors.setup[Done] { context =>
       context.log.info(s"Http actor  started")
 
@@ -20,7 +19,7 @@ object HttpServer {
       implicit val system: ActorSystem[Nothing] = context.system
       implicit val ec: ExecutionContext = context.system.executionContext
 
-      val api = AuctionApi(actor, system)
+      val api = AuctionApi(auctionActor, bidActor, system)
       val serverBinding: Future[Http.ServerBinding] = Http().newServerAt("localhost", 8080).bind(api.routes)
 
       serverBinding.onComplete { // Another pattern matching anonymous function

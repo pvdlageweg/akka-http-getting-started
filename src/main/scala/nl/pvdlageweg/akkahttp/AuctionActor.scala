@@ -8,7 +8,6 @@ import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success}
 object AuctionActor {
   case class Auction(auctionId: Int, description: String)
-  case class Bid(auctionId: Int, userId: String, offer: Int)
 
   sealed trait Command
 
@@ -31,12 +30,7 @@ object AuctionActor {
   /**
     * Actor builder method
     */
-  def apply(auctionDoa: AuctionDao)(implicit executionContext: ExecutionContext): Behavior[Command] =
-    apply(auctionDoa, List.empty[Bid])
-
-  def apply(auctionDao: AuctionDao, bids: List[Bid])(implicit
-      executionContext: ExecutionContext
-  ): Behavior[Command] =
+  def apply(auctionDao: AuctionDao)(implicit executionContext: ExecutionContext): Behavior[Command] =
     Behaviors.setup { context =>
       context.log.info("AuctionActor started")
 
