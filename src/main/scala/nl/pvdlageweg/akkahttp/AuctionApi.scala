@@ -10,29 +10,58 @@ import nl.pvdlageweg.akkahttp.AuctionActor._
 import spray.json.DefaultJsonProtocol.{jsonFormat1, jsonFormat2, _}
 import spray.json.RootJsonFormat
 
-import scala.concurrent.{ExecutionContextExecutor, Future}
+import scala.concurrent.ExecutionContextExecutor
 import scala.concurrent.duration._
-import scala.util.Failure
-import scala.util.Success
-
 object AuctionApi {
-  def apply(actor: ActorRef[AuctionCommands], system: ActorSystem[_]) = new AuctionApi(actor, system)
+  def apply(actor: ActorRef[Command], system: ActorSystem[_]) = new AuctionApi(actor, system)
 }
 
-class AuctionApi(private val actor: ActorRef[AuctionCommands], private val system: ActorSystem[_]) {
+class AuctionApi(private val actor: ActorRef[Command], private val system: ActorSystem[_]) {
 
   // Needed for ask pattern and Futures
   implicit val timeout: Timeout = Timeout(5.seconds) // usually we'd obtain the timeout from the system's configuration
   implicit val scheduler: Scheduler = system.scheduler
   implicit val ec: ExecutionContextExecutor = system.executionContext
-  implicit val bidFormat: RootJsonFormat[Bid] = jsonFormat3(Bid)
+  //implicit val bidFormat: RootJsonFormat[Bid] = jsonFormat3(Bid)
   implicit val auctionFormat: RootJsonFormat[Auction] = jsonFormat2(Auction)
-  implicit val bidsFormat: RootJsonFormat[Bids] = jsonFormat1(Bids)
+  //implicit val bidsFormat: RootJsonFormat[Bids] = jsonFormat1(Bids)
   implicit val auctionsFormat: RootJsonFormat[AuctionList] = jsonFormat1(AuctionList)
   val routes: Route = concat(
+    auctions(),
     auction()
   )
 
+  // GET /auctions
+  // returns AuctionList(..)
+  private def auctions(): Route =
+    path("auctions") {
+      get {
+        val future = actor.ask[Response](replyTo => RequestAuctionList(replyTo))
+
+        onSuccess(future) {
+          case AuctionList(auctions) =>
+            complete(StatusCodes.OK, auctions)
+        }
+      }
+    }
+
+  // GET /auction/id
+  // returns Auction(..)
+  private def auction(): Route =
+    path("auction" / Segment) { auctionId =>
+      get {
+        val future = actor.ask[Response](replyTo => RequestAuction(auctionId.toInt, replyTo))
+
+        onSuccess(future) {
+          case ExistingAuction(auction) =>
+            complete(StatusCodes.OK, auction)
+          case AuctionNotFound(auctionId) =>
+            complete(StatusCodes.NotFound)
+        }
+      }
+    }
+
+  /*
   // GET /auction
   private def auction(): Route =
     concat(
@@ -41,7 +70,7 @@ class AuctionApi(private val actor: ActorRef[AuctionCommands], private val syste
           put {
             parameter("auction".as[Int], "bid".as[Int], "user") { (auction, bid, user) =>
               onComplete(
-                actor.ask[BidsAcceptance](ref => PlaceBid(Bid(auction, user, bid), ref)).mapTo[BidsAcceptance]
+                actor.ask[BidsResponse](ref => PlaceBid(Bid(auction, user, bid), ref)).mapTo[BidsResponse]
               ) {
                 case Success(bidResult) =>
                   bidResult match {
@@ -62,10 +91,11 @@ class AuctionApi(private val actor: ActorRef[AuctionCommands], private val syste
       },
       path("auctionlist") {
         get {
-          implicit val scheduler: Scheduler = system.scheduler
+
           val auctionListFuture: Future[AuctionList] = (actor ? RequestAuctionList).mapTo[AuctionList]
           complete(auctionListFuture)
         }
       }
     )
+   */
 }

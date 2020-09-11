@@ -1,16 +1,16 @@
 package nl.pvdlageweg.akkahttp
 
 import akka.Done
-import akka.actor.typed.{ActorRef, ActorSystem}
+import akka.actor.typed.{ActorRef, ActorSystem, Behavior}
 import akka.actor.typed.scaladsl.Behaviors
 import akka.http.scaladsl.Http
-import nl.pvdlageweg.akkahttp.AuctionActor.AuctionCommands
+import nl.pvdlageweg.akkahttp.AuctionActor.Command
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success}
 
 object HttpServer {
-  def apply(actor: ActorRef[AuctionCommands]) =
+  def apply(actor: ActorRef[Command]): Behavior[Done] =
     Behaviors.setup[Done] { context =>
       context.log.info(s"Http actor  started")
 
