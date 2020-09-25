@@ -19,12 +19,14 @@ object MainSupervisor {
       implicit val executionContext: ExecutionContext = context.executionContext
       context.log.info("MainSupervisor started")
 
+      val auctionDao = AuctionDao.apply();
+
       // Start and watch AuctionActor actor
-      val auctionActor = context.spawn(AuctionActor(AuctionDao.apply()), "AuctionActor")
+      val auctionActor = context.spawn(AuctionActor(auctionDao), "AuctionActor")
       context.watch(auctionActor)
 
       // Start and watch BidActor actor
-      val bidActor = context.spawn(BidActor(BidDao.apply()), "BidActor")
+      val bidActor = context.spawn(BidActor(auctionDao, BidDao.apply()), "BidActor")
       context.watch(bidActor)
 
       // Start and watch HttpServer actor

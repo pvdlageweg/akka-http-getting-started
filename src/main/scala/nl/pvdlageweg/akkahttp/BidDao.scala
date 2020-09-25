@@ -1,6 +1,6 @@
 package nl.pvdlageweg.akkahttp
 
-import nl.pvdlageweg.akkahttp.BidActor.Bid
+import nl.pvdlageweg.akkahttp.BidActor.{Bid, BidRequest}
 import nl.pvdlageweg.akkahttp.BidDaoDefinitions.BidDaoImpl
 import slick.lifted.ProvenShape
 
@@ -8,7 +8,7 @@ import scala.concurrent.Future
 
 private[akkahttp] trait BidDao {
 
-  def create(bidInformation: Bid): Future[Unit]
+  def create(bidRequest: BidRequest): Future[Bid]
 
   def read(auctionId: Int): Future[Option[Bid]]
 
@@ -34,7 +34,7 @@ private[akkahttp] object BidDaoDefinitions extends SlickDAO[Bid, Bid] {
   class BidTable(tag: Tag) extends Table[Bid](tag, "bids") {
     override def * : ProvenShape[Bid] = (bidId, auctionId, offer).<>((Bid.apply _).tupled, Bid.unapply)
 
-    def bidId = column[Int]("bid_id", O.PrimaryKey)
+    def bidId = column[Int]("bid_id", O.PrimaryKey, O.AutoInc)
 
     def auctionId = column[Int]("auction_id")
 
@@ -42,8 +42,10 @@ private[akkahttp] object BidDaoDefinitions extends SlickDAO[Bid, Bid] {
   }
 
   class BidDaoImpl extends BidDao with ActorContext {
-    override def create(bidInformation: Bid): Future[Unit] = {
-      db.run(query += bidInformation).map(_ => ())
+    override def create(bidRequest: BidRequest): Future[Bid] = {
+      val bid = Bid(0, bidRequest.auctionId, bidRequest.offer);
+      db.run(query returning query.map(_.bidId) += bid)
+        .map(id => bid.copy(bidId = Some(id).get))
     }
 
     override def read(bidId: Int): Future[Option[Bid]] = {

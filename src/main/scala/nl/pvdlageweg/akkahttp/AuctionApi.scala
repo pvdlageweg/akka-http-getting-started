@@ -40,7 +40,8 @@ class AuctionApi(
   val routes: Route = concat(
     auctions(),
     auction(),
-    bids()
+    bids(),
+    placeBid()
   )
 
   // GET /auctions
@@ -85,6 +86,22 @@ class AuctionApi(
             complete(StatusCodes.OK, bids)
           case BidListFetchingError(error) =>
             complete(StatusCodes.NotFound, error)
+        }
+      }
+    }
+
+  // POST /bids/auctionId/place/offer
+  private def placeBid(): Route =
+    path("bids" / Segment / "place" / Segment) { (auctionId, offer) =>
+      post {
+        val future = bidActor.ask[BidActor.Response](replyTo =>
+          RequestPlaceAuctionBid(BidRequest(auctionId.toInt, offer.toFloat), replyTo)
+        )
+        onSuccess(future) {
+          case BidPlacementSuccessful() =>
+            complete(StatusCodes.OK)
+          case BidPlacementFailed(error) =>
+            complete(StatusCodes.BadRequest, error)
         }
       }
     }
