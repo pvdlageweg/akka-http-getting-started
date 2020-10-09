@@ -45,36 +45,34 @@ object BidActor {
           }
           Behaviors.same
 
-        case RequestPlaceAuctionBid(bidrequest, replyTo) =>
-          val auctionFuture: Future[Option[Auction]] = auctionDoa.read(bidrequest.auctionId)
+        case RequestPlaceAuctionBid(bidRequest, replyTo) =>
+          val auctionFuture: Future[Option[Auction]] = auctionDoa.read(bidRequest.auctionId)
           auctionFuture.onComplete {
-            case Success(optionAuction) => {
+            case Success(optionAuction) =>
               optionAuction match {
-                case Some(optionAuction) =>
+                case Some(_) =>
                   println("Found auction")
-                  val bidsFuture = bidDao.ofAuction(bidrequest.auctionId)
+                  val bidsFuture = bidDao.ofAuction(bidRequest.auctionId)
                   bidsFuture.onComplete {
-                    case Success(bidsIterator) => {
+                    case Success(bidsIterator) =>
                       val maxBid = bidsIterator.map(_.offer).max
                       println(s"max bix $maxBid")
-                      if (bidrequest.offer <= maxBid) {
+                      if (bidRequest.offer <= maxBid) {
 
                         replyTo ! BidPlacementFailed(s"Bid is less then current top bid of $maxBid")
                       } else {
-                        val saveBidFuture = bidDao.create(bidrequest)
+                        val saveBidFuture = bidDao.create(bidRequest)
                         saveBidFuture.onComplete {
-                          case Success(bidsIterator) => replyTo ! BidPlacementSuccessful()
-                          case Failure(e)            => replyTo ! BidPlacementFailed(e.getMessage)
+                          case Success(_) => replyTo ! BidPlacementSuccessful()
+                          case Failure(e) => replyTo ! BidPlacementFailed(e.getMessage)
                         }
                       }
-                    }
 
                     case Failure(e) => replyTo ! BidPlacementFailed(e.getMessage)
                   }
                 case None =>
                   replyTo ! BidPlacementFailed("Auction not found")
               }
-            }
             case Failure(e) => replyTo ! BidPlacementFailed(e.getMessage)
           }
 
