@@ -2,10 +2,12 @@ package nl.pvdlageweg.akkahttp
 
 import akka.actor.typed.{ActorRef, Behavior}
 import akka.persistence.typed.PersistenceId
-import akka.persistence.typed.scaladsl.EventSourcedBehavior
+import akka.persistence.typed.scaladsl.{Effect, EventSourcedBehavior}
+import nl.pvdlageweg.akkahttp.AuctionActor.Auction
 
 import scala.collection.Iterable
-import scala.concurrent.ExecutionContext
+import scala.concurrent.{ExecutionContext, Future}
+import scala.util.{Failure, Success}
 
 object BidActor {
   case class Bid(bidId: Int, auctionId: Int, offer: Float)
@@ -31,61 +33,69 @@ object BidActor {
   sealed trait Event
   final case class State()
 
-  def apply(auctionDoa: AuctionDao, bidDao: BidDao)(implicit executionContext: ExecutionContext): Behavior[Command] =
+  def apply(auctionDoa: AuctionDao, bidDao: BidDao)(implicit executionContext: ExecutionContext): Behavior[Command] = {
     EventSourcedBehavior[Command, Event, State](
       persistenceId = PersistenceId.ofUniqueId("abc"),
       emptyState = State(),
-      commandHandler = (state, cmd) => throw new NotImplementedError("TODO: process the command & return an Effect"),
-      eventHandler = (state, evt) => throw new NotImplementedError("TODO: process the event return the next state")
+      commandHandler = (state, command) => onCommand(state, command, auctionDoa, bidDao),
+      eventHandler = (state, event) => eventHandler(state, event)
     )
+  }
 
-//  def apply(auctionDoa: AuctionDao, bidDao: BidDao)(implicit executionContext: ExecutionContext): Behavior[Command] =
-//    Behaviors.setup { context =>
-//      context.log.info("AuctionActor started")
-//
-//      Behaviors.receiveMessage {
-//        case RequestAuctionBids(auctionId, replyTo) =>
-//          val bidsFuture: Future[Iterable[Bid]] = bidDao.ofAuction(auctionId)
-//          bidsFuture.onComplete {
-//            case Success(bidsIterable) => replyTo ! BidList(bidsIterable)
-//            case Failure(e)            => replyTo ! BidListFetchingError(e.getMessage)
-//          }
-//          Behaviors.same
-//
-//        case RequestPlaceAuctionBid(bidRequest, replyTo) =>
-//          val auctionFuture: Future[Option[Auction]] = auctionDoa.read(bidRequest.auctionId)
-//          auctionFuture.onComplete {
-//            case Success(optionAuction) =>
-//              optionAuction match {
-//                case Some(_) =>
-//                  println("Found auction")
-//                  val bidsFuture = bidDao.ofAuction(bidRequest.auctionId)
-//                  bidsFuture.onComplete {
-//                    case Success(bidsIterator) =>
-//                      val maxBid = bidsIterator.map(_.offer).max
-//                      println(s"max bix $maxBid")
-//                      if (bidRequest.offer <= maxBid) {
-//
-//                        replyTo ! BidPlacementFailed(s"Bid is less then current top bid of $maxBid")
-//                      } else {
-//                        val saveBidFuture = bidDao.create(bidRequest)
-//                        saveBidFuture.onComplete {
-//                          case Success(_) => replyTo ! BidPlacementSuccessful()
-//                          case Failure(e) => replyTo ! BidPlacementFailed(e.getMessage)
-//                        }
-//                      }
-//
-//                    case Failure(e) => replyTo ! BidPlacementFailed(e.getMessage)
-//                  }
-//                case None =>
-//                  replyTo ! BidPlacementFailed("Auction not found")
-//              }
-//            case Failure(e) => replyTo ! BidPlacementFailed(e.getMessage)
-//          }
-//
-//          Behaviors.same
-//        case _ =>
-//          Behaviors.unhandled
-//      }
-//    }
+  private def onCommand(state: State, command: Command, auctionDoa: AuctionDao, bidDao: BidDao)(implicit
+      executionContext: ExecutionContext
+  ): Effect[Event, State] = {
+    command match {
+      case RequestAuctionBids(auctionId, replyTo) => {
+        val bidsFuture: Future[Iterable[Bid]] = bidDao.ofAuction(auctionId)
+        bidsFuture.onComplete {
+          case Success(bidsIterable) => replyTo ! BidList(bidsIterable)
+          case Failure(e)            => replyTo ! BidListFetchingError(e.getMessage)
+        }
+        Effect.none
+      }
+      case RequestPlaceAuctionBid(bidRequest, replyTo) =>
+        val auctionFuture: Future[Option[Auction]] = auctionDoa.read(bidRequest.auctionId)
+        auctionFuture.onComplete {
+          case Success(optionAuction) =>
+            optionAuction match {
+              case Some(_) =>
+                println("Found auction")
+                val bidsFuture = bidDao.ofAuction(bidRequest.auctionId)
+                bidsFuture.onComplete {
+                  case Success(bidsIterator) =>
+                    val maxBid = bidsIterator.map(_.offer).max
+                    println(s"max bix $maxBid")
+                    if (bidRequest.offer <= maxBid) {
+                      replyTo ! BidPlacementFailed(s"Bid is less then current top bid of $maxBid")
+                    } else {
+                      val saveBidFuture = bidDao.create(bidRequest)
+                      saveBidFuture.onComplete {
+                        case Success(_) =>
+                          Effect.persist(bidRequest)
+                          replyTo ! BidPlacementSuccessful()
+                        case Failure(e) => replyTo ! BidPlacementFailed(e.getMessage)
+                      }
+                    }
+
+                  case Failure(e) => replyTo ! BidPlacementFailed(e.getMessage)
+                }
+              case None =>
+                replyTo ! BidPlacementFailed("Auction not found")
+            }
+          case Failure(e) => replyTo ! BidPlacementFailed(e.getMessage)
+        }
+        Effect.none
+    }
+  }
+
+  val eventHandler: (State, Event) => State = { (state, event) =>
+    event match {
+      case _ =>
+        println("Event")
+        State()
+      //case Added(data) => state.copy((data :: state.history).take(5))
+      //case Cleared     => State(Nil)
+    }
+  }
 }
