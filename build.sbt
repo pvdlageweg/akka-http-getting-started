@@ -4,7 +4,7 @@ name := "getting-started"
 organization := "com.pvdlageweg.akkahttp"
 version := "1.0"
 
-lazy val akkaVersion = "2.6.9"
+lazy val akkaVersion = "2.6.10"
 lazy val akkaHttpVersion = "10.2.1"
 lazy val slickVersion = "3.3.3"
 
