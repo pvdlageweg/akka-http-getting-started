@@ -13,7 +13,7 @@ object BidActor {
   case class Bid(bidId: Int, auctionId: Int, offer: Float)
   case class BidRequest(auctionId: Int, offer: Float)
 
-  sealed trait Command
+  sealed trait Command extends CborSerialized
 
   // Request a list of bids for an auction
   final case class RequestAuctionBids(auctionId: Int, replyTo: ActorRef[Response]) extends Command
@@ -46,14 +46,13 @@ object BidActor {
       executionContext: ExecutionContext
   ): Effect[Event, State] = {
     command match {
-      case RequestAuctionBids(auctionId, replyTo) => {
+      case RequestAuctionBids(auctionId, replyTo) =>
         val bidsFuture: Future[Iterable[Bid]] = bidDao.ofAuction(auctionId)
         bidsFuture.onComplete {
           case Success(bidsIterable) => replyTo ! BidList(bidsIterable)
           case Failure(e)            => replyTo ! BidListFetchingError(e.getMessage)
         }
         Effect.none
-      }
       case RequestPlaceAuctionBid(bidRequest, replyTo) =>
         val auctionFuture: Future[Option[Auction]] = auctionDoa.read(bidRequest.auctionId)
         auctionFuture.onComplete {
@@ -67,23 +66,25 @@ object BidActor {
                     val maxBid = bidsIterator.map(_.offer).max
                     println(s"max bix $maxBid")
                     if (bidRequest.offer <= maxBid) {
-                      replyTo ! BidPlacementFailed(s"Bid is less then current top bid of $maxBid")
+                      val errorMessage = s"Bid is less then current top bid of $maxBid"
+                      Effect.reply(replyTo)(BidPlacementFailed(errorMessage))
                     } else {
                       val saveBidFuture = bidDao.create(bidRequest)
                       saveBidFuture.onComplete {
-                        case Success(_) =>
-                          Effect.persist(bidRequest)
-                          replyTo ! BidPlacementSuccessful()
-                        case Failure(e) => replyTo ! BidPlacementFailed(e.getMessage)
+                        case Success(savedBid) =>
+                          println(s"Success!")
+                          println(savedBid)
+                          Effect.persist(bidRequest).thenReply(replyTo){x:Bid=>BidPlacementSuccessful()}
+                        case Failure(e) => Effect.reply(replyTo){BidPlacementFailed(e.getMessage)}
                       }
                     }
 
-                  case Failure(e) => replyTo ! BidPlacementFailed(e.getMessage)
+                  case Failure(e) => Effect.reply(replyTo)(BidPlacementFailed(e.getMessage))
                 }
               case None =>
-                replyTo ! BidPlacementFailed("Auction not found")
+                Effect.reply(replyTo)(BidPlacementFailed("Auction not found"))
             }
-          case Failure(e) => replyTo ! BidPlacementFailed(e.getMessage)
+          case Failure(e) => Effect.reply(replyTo)(BidPlacementFailed(e.getMessage))
         }
         Effect.none
     }

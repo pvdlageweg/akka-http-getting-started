@@ -44,6 +44,8 @@ private[akkahttp] object BidDaoDefinitions extends SlickDAO[Bid, Bid] {
   class BidDaoImpl extends BidDao with ActorContext {
     override def create(bidRequest: BidRequest): Future[Bid] = {
       val bid = Bid(0, bidRequest.auctionId, bidRequest.offer);
+      println("In bid create");
+      println(bid)
       db.run(query returning query.map(_.bidId) += bid)
         .map(id => bid.copy(bidId = Some(id).get))
     }

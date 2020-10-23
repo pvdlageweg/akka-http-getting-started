@@ -1,5 +1,5 @@
 create table auctions (
-  auction_id  int not null auto_increment,
+  auction_id SERIAL,
   description varchar(255) not null,
   primary key(auction_id)
 );
@@ -7,9 +7,9 @@ create table auctions (
 insert into auctions(auction_id, description) values(123, 'test auction');
 
 create table bids (
-  bid_id  int not null auto_increment,
+  bid_id SERIAL,
   auction_id  int not null,
-  offer double not null,
+  offer NUMERIC(5,2) not null,
   primary key(bid_id)
 );
 

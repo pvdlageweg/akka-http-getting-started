@@ -15,11 +15,13 @@ libraryDependencies +="com.typesafe.akka" %% "akka-actor-typed" % akkaVersion
 libraryDependencies +="com.typesafe.akka" %% "akka-persistence" % akkaVersion
 libraryDependencies +="com.typesafe.akka" %% "akka-persistence-typed" % akkaVersion
 libraryDependencies +="com.typesafe.akka" %% "akka-persistence-query" % akkaVersion
+libraryDependencies +="com.typesafe.akka" %% "akka-serialization-jackson" % akkaVersion
 libraryDependencies +="com.typesafe.slick" %% "slick" % slickVersion
 libraryDependencies +="com.typesafe.slick" %% "slick-hikaricp" % slickVersion
-libraryDependencies += "com.github.dnvriend" %% "akka-persistence-jdbc" % "3.5.3"
+libraryDependencies += "com.lightbend.akka" %% "akka-persistence-jdbc" % "4.0.0"
 libraryDependencies +="org.flywaydb" % "flyway-core" % "7.0.4"
 libraryDependencies +="com.h2database" % "h2" % "1.4.200"
+libraryDependencies +="org.postgresql" % "postgresql" % "42.2.18"
 libraryDependencies +="com.typesafe.akka" %% "akka-slf4j" % akkaVersion
 libraryDependencies +="ch.qos.logback" % "logback-classic" % "1.2.3"
 
