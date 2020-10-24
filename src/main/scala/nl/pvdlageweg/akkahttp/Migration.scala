@@ -10,7 +10,7 @@ object Migration {
   private val config = ConfigFactory.load()
   private val databaseConfig = config.getConfig("db.auctions")
 
-  private val flywayConfiguration = new FluentConfiguration();
+  private val flywayConfiguration = new FluentConfiguration()
   flywayConfiguration.dataSource(
     databaseConfig.getString("db.url"),
     databaseConfig.getString("db.user"),
