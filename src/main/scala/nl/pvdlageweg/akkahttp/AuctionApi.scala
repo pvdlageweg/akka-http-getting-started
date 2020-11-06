@@ -79,14 +79,15 @@ class AuctionApi(
   private def bids(): Route =
     path("bids" / Segment) { auctionId =>
       get {
-        val future = bidActor.ask[BidActor.Response](replyTo => RequestAuctionBids(auctionId.toInt, replyTo))
-
-        onSuccess(future) {
-          case BidList(bids) =>
-            complete(StatusCodes.OK, bids)
-          case BidListFetchingError(error) =>
-            complete(StatusCodes.NotFound, error)
-        }
+        complete(StatusCodes.NotFound, "error?????")
+//        val future = bidActor.ask[BidActor.Response](replyTo => RequestAuctionBids(auctionId.toInt, replyTo))
+//
+//        onSuccess(future) {
+//          case BidList(bids) =>
+//            complete(StatusCodes.OK, bids)
+//          case BidListFetchingError(error) =>
+//            complete(StatusCodes.NotFound, error)
+//        }
       }
     }
 
@@ -100,8 +101,8 @@ class AuctionApi(
         onSuccess(future) {
           case BidPlacementSuccessful() =>
             complete(StatusCodes.OK)
-          case BidPlacementFailed(error) =>
-            complete(StatusCodes.BadRequest, error)
+//          case BidPlacementFailed(error) =>
+//            complete(StatusCodes.BadRequest, error)
         }
       }
     }
