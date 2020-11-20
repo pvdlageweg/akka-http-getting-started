@@ -1,4 +1,4 @@
-scalaVersion := "2.13.3"
+scalaVersion := "2.13.4"
 
 name := "getting-started"
 organization := "com.pvdlageweg.akkahttp"
@@ -19,7 +19,7 @@ libraryDependencies +="com.typesafe.akka" %% "akka-serialization-jackson" % akka
 libraryDependencies +="com.typesafe.slick" %% "slick" % slickVersion
 libraryDependencies +="com.typesafe.slick" %% "slick-hikaricp" % slickVersion
 libraryDependencies += "com.lightbend.akka" %% "akka-persistence-jdbc" % "4.0.0"
-libraryDependencies +="org.flywaydb" % "flyway-core" % "7.2.0"
+libraryDependencies +="org.flywaydb" % "flyway-core" % "7.2.1"
 libraryDependencies +="com.h2database" % "h2" % "1.4.200"
 libraryDependencies +="org.postgresql" % "postgresql" % "42.2.18"
 libraryDependencies +="com.typesafe.akka" %% "akka-slf4j" % akkaVersion
