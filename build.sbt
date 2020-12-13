@@ -5,7 +5,7 @@ organization := "com.pvdlageweg.akkahttp"
 version := "1.0"
 
 lazy val akkaVersion = "2.6.10"
-lazy val akkaHttpVersion = "10.2.1"
+lazy val akkaHttpVersion = "10.2.2"
 lazy val slickVersion = "3.3.3"
 
 libraryDependencies += "com.typesafe.akka" %% "akka-http-spray-json" % akkaHttpVersion
@@ -19,7 +19,7 @@ libraryDependencies +="com.typesafe.akka" %% "akka-serialization-jackson" % akka
 libraryDependencies +="com.typesafe.slick" %% "slick" % slickVersion
 libraryDependencies +="com.typesafe.slick" %% "slick-hikaricp" % slickVersion
 libraryDependencies += "com.lightbend.akka" %% "akka-persistence-jdbc" % "4.0.0"
-libraryDependencies +="org.flywaydb" % "flyway-core" % "7.3.0"
+libraryDependencies +="org.flywaydb" % "flyway-core" % "7.3.1"
 libraryDependencies +="com.h2database" % "h2" % "1.4.200"
 libraryDependencies +="org.postgresql" % "postgresql" % "42.2.18"
 libraryDependencies +="com.typesafe.akka" %% "akka-slf4j" % akkaVersion
