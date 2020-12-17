@@ -101,8 +101,8 @@ class AuctionApi(
         onSuccess(future) {
           case BidPlacementSuccessful() =>
             complete(StatusCodes.OK)
-//          case BidPlacementFailed(error) =>
-//            complete(StatusCodes.BadRequest, error)
+          case BidPlacementFailed(error) =>
+            complete(StatusCodes.BadRequest, error)
         }
       }
     }

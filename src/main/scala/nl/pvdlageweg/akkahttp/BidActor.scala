@@ -1,11 +1,11 @@
 package nl.pvdlageweg.akkahttp
 
-import akka.actor.typed.{ActorRef, ActorSystem, Behavior, TypedActorContext}
-import akka.actor.typed.scaladsl.ActorContext
-import akka.actor.typed.scaladsl.Behaviors
+import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
+import akka.actor.typed.{ActorRef, Behavior}
 import akka.persistence.typed.PersistenceId
 import akka.persistence.typed.scaladsl.{Effect, EventSourcedBehavior}
 import nl.pvdlageweg.akkahttp.AuctionActor.Auction
+import sun.security.krb5.KrbException.errorMessage
 
 import scala.collection.Iterable
 import scala.concurrent.{ExecutionContext, Future}
@@ -27,6 +27,7 @@ object BidActor {
   sealed trait Response
 
   final case class BidPlacementSuccessful() extends Response
+  final case class BidPlacementFailed(error: String) extends Response
   final case class BidList(auctions: Iterable[Bid]) extends Response
   final case class BidListFetchingError(error: String) extends Response
 
@@ -37,31 +38,71 @@ object BidActor {
   sealed trait State
 
   final case object Empty extends State
-
-  def commandHandler(command: Command, context: ActorContext[Command], auctionDoa: AuctionDao, bidDao: BidDao)(implicit executionContext: ExecutionContext): Effect[Event, State] =
+  private final case class InternalResponse(replyTo: ActorRef[Response], response: Response) extends Command
+  def commandHandler(command: Command, context: ActorContext[Command], auctionDoa: AuctionDao, bidDao: BidDao)(implicit
+      executionContext: ExecutionContext
+  ): Effect[Event, State] =
     command match {
+      case InternalResponse(replyTo, response) =>
+        Effect.reply(replyTo)(response)
       case RequestAuctionBids(auctionId, replyTo) =>
         val bidsFuture: Future[Iterable[Bid]] = bidDao.ofAuction(auctionId)
         context.pipeToSelf(bidsFuture) {
-          https://github.com/yangbajing/yangbajing-blog/blob/develop/src/main/scala/blog/persistence/config/ConfigManager.scala
-          case Success(bidsIterable: Iterable[Bid]) => Effect.reply(replyTo)(BidList(bidsIterable))
-          case Failure(e) =>  Effect.reply(replyTo) { x:State => BidListFetchingError(e.getMessage) }
+          case Success(bidsIterable: Iterable[Bid]) => InternalResponse(replyTo, BidList(bidsIterable))
+          case Failure(e)                           => InternalResponse(replyTo, BidListFetchingError(e.getMessage))
         }
         bidsFuture.onComplete {
-          case Success(bidsIterable) =>  Effect.reply(replyTo){x=>BidList(bidsIterable)}
-          case Failure(e) => Effect.reply(replyTo) { state => BidListFetchingError(e.getMessage) }
+          case Success(bidsIterable) => InternalResponse(replyTo, BidList(bidsIterable))
+          case Failure(e)            => InternalResponse(replyTo, BidListFetchingError(e.getMessage))
         }
-
+        Effect.none
       case RequestPlaceAuctionBid(bidRequest, replyTo) =>
-        val bid = Bid(12, bidRequest.auctionId, bidRequest.offer)
-        Effect
-          .persist(BidCreated(bid))
-          .thenReply(replyTo) { st => BidPlacementSuccessful() }
+        val auctionFuture: Future[Option[Auction]] = auctionDoa.read(bidRequest.auctionId)
+        context.pipeToSelf(auctionFuture) {
+          case Success(optionAuction) =>
+            optionAuction match {
+              case Some(_) =>
+                println("Found auction")
+                val bidsFuture = bidDao.ofAuction(bidRequest.auctionId)
+                context.pipeToSelf(bidsFuture) {
+                  case Success(bidsIterator) =>
+                    val maxBid = bidsIterator.map(_.offer).max
+                    println(s"max bix $maxBid")
+                    if (bidRequest.offer <= maxBid) {
+                      val errorMessage = s"Bid is less then current top bid of $maxBid"
+                      InternalResponse(replyTo, BidPlacementFailed(errorMessage))
+                    } else {
+                      val saveBidFuture = bidDao.create(bidRequest)
+                      saveBidFuture.onComplete {
+                        case Success(savedBid) =>
+                          println(s"Success!")
+                          println(savedBid)
+                          Effect.persist(bidRequest).thenReply(replyTo) { x: Bid => BidPlacementSuccessful() }
+                        case Failure(e) => InternalResponse(replyTo, BidPlacementFailed(e.getMessage))
+                      }
+                      InternalResponse(replyTo, BidPlacementFailed("TODO"))
+                    }
+                  case Failure(e) =>
+                    InternalResponse(replyTo, BidPlacementFailed(e.getMessage))
+                    InternalResponse(replyTo, BidPlacementFailed("TODO2"))
+
+                }
+                Effect.none
+              case None =>
+                InternalResponse(replyTo, BidPlacementFailed("Auction not found"))
+            }
+          case Failure(e) => InternalResponse(replyTo, BidPlacementFailed(e.getMessage))
+        }
+        Effect.none
+//        val bid = Bid(12, bidRequest.auctionId, bidRequest.offer)
+//        Effect
+//          .persist(BidCreated(bid))
+//          .thenReply(replyTo) { st => BidPlacementSuccessful() }
 
     }
 
-  def eventHandler(response: Response, event: Event): State =
-    response match {
+  def eventHandler(state: State, event: Event): State =
+    state match {
       case _ => Empty // Ignore created events on this state
     }
 
@@ -72,14 +113,31 @@ object BidActor {
     * This is an example of functional actor implementation
     */
   def apply(auctionDoa: AuctionDao, bidDao: BidDao)(implicit executionContext: ExecutionContext): Behavior[Command] =
-    Behaviors.setup(context => {
-      EventSourcedBehavior.withEnforcedReplies[Command, Event, Response](
-        persistenceId = PersistenceId.ofUniqueId("bkkabka"),
-        emptyState = Empty,
-        commandHandler = (state, cmd) => commandHandler(cmd, context, auctionDoa, bidDao),
-        eventHandler = (state, evt) => eventHandler(state, evt)
-      )
-    })
+    Behaviors.setup(context => eventSourcedBehavior(context, auctionDoa, bidDao))
+//    {
+//      EventSourcedBehavior.withEnforcedReplies[Command, Event, Response](
+//        persistenceId = PersistenceId.ofUniqueId("bkkabka"),
+//        emptyState = Empty,
+//        commandHandler = (state, cmd) => commandHandler(cmd, context, auctionDoa, bidDao),
+//        eventHandler = (state, evt) => eventHandler(state, evt)
+//      )
+//    })
+
+  def eventSourcedBehavior(context: ActorContext[Command], auctionDoa: AuctionDao, bidDao: BidDao)(implicit
+      executionContext: ExecutionContext
+  ): EventSourcedBehavior[Command, Event, State] =
+    EventSourcedBehavior(
+      PersistenceId.ofUniqueId("bkkabka"),
+      Empty,
+      {
+        case (_, cmd) =>
+          println("handle cmd: " + cmd)
+          commandHandler(cmd, context, auctionDoa, bidDao)
+        case _ =>
+          Effect.none
+      },
+      eventHandler
+    )
 
   //
   //  case class BidRequest(auctionId: Int, offer: Float)
